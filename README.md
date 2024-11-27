@@ -59,3 +59,5 @@ http://localhost:8080
 
 - Name: Bohdan Perepichai
 - Email: bohdanperepichai@gmail.com
+- YouTube: www.youtube.com/@budanJS
+- Telegram: https://t.me/budanJS
