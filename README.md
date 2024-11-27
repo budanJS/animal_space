@@ -31,6 +31,12 @@
 git clone https://github.com/budanJS/animal_space.git
 ```
 
+### Go to project directory
+
+```bash
+cd animal_space
+```
+
 ## Install Dependencies
 
 ```bash
