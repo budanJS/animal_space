@@ -55,6 +55,22 @@ Open your browser and navigate to:
 
 http://localhost:8080
 
+
+## 🕹️ How to Play
+
+| Action            | Key                       |
+|-------------------|---------------------------|
+| Move Left         | ← (Left Arrow)            |
+| Move Right        | → (Right Arrow)           |
+| Jump              | ↑ (Up Arrow)              |
+| Crouch            | ↓ (Down Arrow)            |
+| Shoot Straight Bullet | **F**                     |
+| Shoot Bouncing Bullet | **V**                     |
+| Grab onto Bird    | **A**                     |
+| Release from Bird | Automatic after 1 seconds |
+
+
+
 ## 🧑‍💻 Author
 
 - Name: Bohdan Perepichai
