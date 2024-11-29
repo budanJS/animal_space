@@ -35,9 +35,35 @@ export default class GameScene extends Phaser.Scene {
 
         this.load.image('coin', 'assets/images/coin.png'); // Спрайт монети
 
+        this.load.image('plant_enemy', 'assets/images/plant_enemy.png');
+        this.load.image('projectile', 'assets/images/projectile.png');
+
+
+        // Загрузка фоновой музыки
+        this.load.audio('background_music', 'assets/sounds/background_music.mp3');
+
+        // Загрузка звуковых эффектов
+        this.load.audio('shoot_sound', 'assets/sounds/shoot_2.mp3');
+        this.load.audio('shoot_sound_2', 'assets/sounds/shoot.mp3');
+        this.load.audio('damage_sound', 'assets/sounds/damage.mp3');
+        this.load.audio('enemy_destroy_sound', 'assets/sounds/enemy_destroy.mp3');
+
     }
 
     create() {
+
+        this.backgroundMusic = this.sound.add('background_music', {
+            loop: true, // Зациклить музыку
+            volume: 0.5, // Громкость
+        });
+        this.backgroundMusic.play();
+
+        // Звуки
+        this.shootSound = this.sound.add('shoot_sound', { volume: 1 });
+        this.shootSound_2 = this.sound.add('shoot_sound_2', { volume: 1 });
+        this.damageSound = this.sound.add('damage_sound', { volume: 1 });
+        this.enemyDestroySound = this.sound.add('enemy_destroy_sound', { volume: 1 });
+
         // Фон
 
         this.backgrounds = [];
@@ -58,7 +84,6 @@ export default class GameScene extends Phaser.Scene {
 
         // Платформи
         this.platforms = this.physics.add.staticGroup();
-
         this.platforms.create(100, 568, 'platform'); // Нижня платформа
         this.platforms.create(320, 450, 'platform');
         this.platforms.create(900, 450, 'platform');
@@ -68,7 +93,6 @@ export default class GameScene extends Phaser.Scene {
         this.platforms.create(2200, 450, 'platform');
         this.platforms.create(2600, 420, 'platform');
         this.platforms.create(3000, 400, 'platform');
-
 
         // Герой (Тигр)
         this.tiger = this.physics.add.sprite(100, 450, 'tiger').setScale(0.5);
@@ -247,6 +271,9 @@ export default class GameScene extends Phaser.Scene {
         });
 
 
+
+        this.addPlants();
+
     }
 
 
@@ -378,8 +405,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
 
-
-
     animateWalk(delta) {
         this.walkTimer += delta;
 
@@ -489,6 +514,7 @@ export default class GameScene extends Phaser.Scene {
         this.time.delayedCall(1000, () => {
             if (enemy && enemy.active) {
                 enemy.destroy();
+                this.enemyDestroySound.play();
                 this.checkVictory(); // Перевіряємо, чи всі вороги знищені
             }
         });
@@ -499,6 +525,7 @@ export default class GameScene extends Phaser.Scene {
         if (this.invulnerable) return; // Якщо герой тимчасово невразливий, ігнорувати
 
         this.heroHealth -= 1;
+        this.damageSound.play();
         this.healthText.setText(`Життя: ${this.heroHealth}`);
 
         if (this.heroHealth <= 0) {
@@ -516,6 +543,7 @@ export default class GameScene extends Phaser.Scene {
     // Логіка Game Over
     showGameOverScreen() {
         this.physics.pause(); // Зупиняємо гру
+        this.backgroundMusic.pause();
         this.tiger.setTint(0xff0000); // Позначаємо героя червоним кольором
 
         const { width, height } = this.scale;
@@ -622,6 +650,8 @@ export default class GameScene extends Phaser.Scene {
             if (bullet.active) bullet.destroy();
         });
 
+        this.shootSound.play();
+
     }
 
     shootBouncingBullet() {
@@ -649,13 +679,18 @@ export default class GameScene extends Phaser.Scene {
 
         // Колізія кулі з ґрунтом
         this.physics.add.collider(bullet, this.ground); // ground — це група підлоги
+
+        this.shootSound_2.play();
     }
+
+
 
     hitEnemyWithBullet(bullet, enemy) {
         bullet.destroy(); // Знищуємо кулю
 
         if (!enemy || !enemy.body) return; // Перевірка існування ворога
 
+        this.enemyDestroySound.play();
         // Перевертаємо ворога
         enemy.setFlipY(true);
         enemy.setVelocityY(200);
@@ -665,6 +700,8 @@ export default class GameScene extends Phaser.Scene {
         if (enemy.jumpTimer) enemy.jumpTimer.remove();
         if (enemy.climbTimer) enemy.climbTimer.remove();
 
+
+
         this.time.delayedCall(1000, () => {
             if (enemy && enemy.active) {
                 enemy.destroy(); // Видаляємо ворога
@@ -672,6 +709,9 @@ export default class GameScene extends Phaser.Scene {
             }
         });
     }
+
+
+
 
     checkVictory() {
         if (this.enemies.countActive(true) === 0) { // Якщо активних ворогів більше немає
@@ -718,5 +758,119 @@ export default class GameScene extends Phaser.Scene {
 
         coin.destroy(); // Видаляємо монету з фізичного світу
     }
+
+
+
+
+    // Додавання рослини-ворога
+    addStaticPlantEnemy(x, y) {
+        // Додаємо рослину
+        const plant = this.physics.add.sprite(x, y, 'plant_enemy').setScale(0.5).setImmovable(true);
+        plant.body.allowGravity = false; // Рослина статична, не підпадає під дію гравітації
+        plant.setCollideWorldBounds(true);
+
+        // Таймер для стрільби
+        this.time.addEvent({
+            delay: 2000, // Рослина стріляє кожні 2 секунди
+            callback: () => {
+                if (plant && plant.active) { // Перевірка перед стрільбою
+                    this.shootProjectile(plant);
+                }
+            },
+            loop: true,
+        });
+
+        // Взаємодія кулі з рослиною
+        if (this.bullets) {
+
+            this.physics.add.overlap(this.bullets, plant, (bullet, plant) => {
+                if (plant && plant.active) {
+                    this.destroyPlantEnemy(plant);
+                }
+                if (bullet && bullet.active) bullet.destroy(); // Знищуємо кулю
+            });
+        }
+
+        // Взаємодія стрибаючої кулі з рослиною
+        if (this.bouncingBullets) {
+
+            this.physics.add.overlap(this.bouncingBullets, plant, (bullet, plant) => {
+                if (plant && plant.active) {
+                    this.destroyPlantEnemy(plant);
+                }
+                if (bullet && bullet.active) bullet.destroy(); // Знищуємо кулю
+            });
+        }
+
+        return plant;
+    }
+
+
+// Обробка кулі та рослини
+    destroyPlantEnemy(plant) {
+        if (!plant || !plant.active) return; // Перевірка на існування та активність рослини
+
+        // Перевертаємо рослину
+        plant.setFlipY(true); // Візуально перевертаємо спрайт
+        plant.setVelocityY(200); // Додаємо вертикальну швидкість вниз
+        plant.body.checkCollision.none = true; // Вимикаємо колізії рослини
+        plant.body.allowGravity = true; // Увімкнути гравітацію для падіння рослини
+
+        // Видаляємо рослину через 1 секунду
+        this.time.delayedCall(1000, () => {
+            if (plant && plant.active) { // Перевірка перед видаленням
+                plant.destroy(); // Видаляємо рослину
+            }
+        });
+    }
+
+
+// Стрільба снарядами
+    // Стрільба снарядами
+    shootProjectile(plant) {
+        if (!plant || !plant.active) return; // Перевірка, чи рослина активна
+
+        const targetX = this.tiger.x;
+        const targetY = this.tiger.y;
+
+        const projectile = this.physics.add.sprite(plant.x, plant.y, 'projectile').setScale(0.5);
+        projectile.body.allowGravity = false;
+
+        const angle = Phaser.Math.Angle.Between(plant.x, plant.y, targetX, targetY);
+        const speed = 300;
+        projectile.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+
+        projectile.setCollideWorldBounds(true);
+        projectile.body.onWorldBounds = true;
+
+        this.physics.world.on('worldbounds', (body) => {
+            if (body.gameObject === projectile && projectile.active) {
+                projectile.destroy();
+            }
+        });
+
+        // Обробка взаємодії з героєм
+        this.physics.add.overlap(this.tiger, projectile, () => {
+            if (projectile.active) {
+                this.takeDamage(this.tiger); // Герой отримує урон
+                projectile.destroy(); // Знищуємо снаряд
+            }
+        });
+    }
+
+// Додавання рослин на карту
+    addPlants() {
+        const plantPositions = [
+            { x: 500, y: 400 },
+            { x: 1200, y: 350 },
+            { x: 2000, y: 300 },
+        ];
+
+        plantPositions.forEach(pos => {
+            this.addStaticPlantEnemy(pos.x, pos.y);
+        });
+    }
+
+
 
 }
